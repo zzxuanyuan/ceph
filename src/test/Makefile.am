@@ -693,6 +693,27 @@ ceph_test_cls_rgw_CXXFLAGS = $(UNITTEST_CXXFLAGS)
 bin_DEBUGPROGRAMS += ceph_test_cls_rgw
 endif # WITH_RADOSGW
 
+LUA_TEST_H=test/cls_lua/test_script.h
+LUA_TEST_L=test/cls_lua/test_script.lua
+
+EXTRA_DIST += $(LUA_TEST_L)
+BUILT_SOURCES += $(LUA_TEST_H)
+CLEANFILES += $(LUA_TEST_H)
+
+txt2str_SOURCES = test/cls_lua/txt2str.cc
+noinst_PROGRAMS += txt2str
+
+$(LUA_TEST_H): $(LUA_TEST_L) txt2str
+	$(top_builddir)/src/txt2str $(LUA_TEST_L) cls_lua_test_script > $@
+
+ceph_test_cls_lua_SOURCES = \
+	test/cls_lua/test_cls_lua.cc \
+	test/librados/test.cc \
+	$(LUA_TEST_H)
+ceph_test_cls_lua_LDADD = librados.la liblua/liblua.la ${UNITTEST_LDADD}
+ceph_test_cls_lua_CXXFLAGS = ${AM_CXXFLAGS} ${UNITTEST_CXXFLAGS}
+bin_DEBUGPROGRAMS += ceph_test_cls_lua
+
 ceph_test_mon_workloadgen_SOURCES = test/mon/test_mon_workloadgen.cc
 ceph_test_mon_workloadgen_LDADD = $(LIBOS) $(LIBOSDC) $(CEPH_GLOBAL)
 bin_DEBUGPROGRAMS += ceph_test_mon_workloadgen

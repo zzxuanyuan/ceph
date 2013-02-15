@@ -52,6 +52,12 @@ libcls_rgw_la_LIBADD = libjson_spirit.la $(PTHREAD_LIBS) $(EXTRALIBS)
 libcls_rgw_la_LDFLAGS = ${AM_LDFLAGS} -version-info 1:0:0 -export-symbols-regex '.*__cls_.*'
 radoslib_LTLIBRARIES += libcls_rgw.la
 
+libcls_lua_la_SOURCES = cls/lua/cls_lua.cc cls/lua/cls_lua.h
+libcls_lua_la_LIBADD = liblua/liblua.la
+libcls_lua_la_LDFLAGS = ${AM_LDFLAGS} -version-info 1:0:0 -export-symbols-regex '.*__cls_.*'
+	radoslib_LTLIBRARIES += libcls_lua.la
+radoslib_LTLIBRARIES += libcls_lua.la
+
 ## Rados object client classes
 
 libcls_lock_client_la_SOURCES = \
