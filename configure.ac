@@ -593,6 +593,7 @@ AC_CONFIG_FILES([Makefile
 	src/ocf/ceph
 	src/ocf/rbd
 	src/java/Makefile
+	src/liblua/Makefile
 	man/Makefile
 	ceph.spec])
 AC_OUTPUT
