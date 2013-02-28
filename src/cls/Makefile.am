@@ -101,6 +101,14 @@ DENCODER_DEPS += libcls_rgw_client.la
 libcls_rbd_client_la_SOURCES = cls/rbd/cls_rbd_client.cc
 noinst_LTLIBRARIES += libcls_rbd_client.la
 
+libcls_lua_client_la_SOURCES = \
+	cls/lua/cls_lua_client.cc \
+	cls/lua/cls_lua_client.hpp
+lib_LTLIBRARIES += libcls_lua_client.la
+
+libcls_lua_client_includedir = $(includedir)/cls_lua
+libcls_lua_client_include_DATA = \
+	$(srcdir)/cls/lua/cls_lua_client.hpp
 
 noinst_HEADERS += \
 	cls/lock/cls_lock_types.h \
