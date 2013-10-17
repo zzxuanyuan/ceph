@@ -1,9 +1,11 @@
 #include <errno.h>
+#include <lua.hpp>
+#include "include/types.h"
 #include "include/rados/librados.h"
 #include "gtest/gtest.h"
 #include "test/librados/test.h"
-#include "liblua/lua.hpp"
 #include "cls/lua/cls_lua_client.hpp"
+#include "cls/lua/cls_lua.h"
 
 /*
  * Auto-generated during build process. It includes the Lua unit test script

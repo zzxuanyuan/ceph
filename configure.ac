@@ -539,6 +539,11 @@ AC_CHECK_FUNC([fallocate],
 AC_CHECK_HEADERS([sys/prctl.h])
 AC_CHECK_FUNCS([prctl])
 
+PKG_CHECK_MODULES(LUA, luajit, , [
+  AC_CHECK_HEADERS([lua.hpp], , [AC_MSG_ERROR("LuaJIT header not found.")])
+  AC_CHECK_LIB(luajit, main, , [AC_MSG_ERROR("Linking against LuaJIT library failed.")])
+])
+
 # Checks for typedefs, structures, and compiler characteristics.
 #AC_HEADER_STDBOOL
 #AC_C_CONST
@@ -593,7 +598,6 @@ AC_CONFIG_FILES([Makefile
 	src/ocf/ceph
 	src/ocf/rbd
 	src/java/Makefile
-	src/liblua/Makefile
 	man/Makefile
 	ceph.spec])
 AC_OUTPUT

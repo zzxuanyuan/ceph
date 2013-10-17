@@ -3,9 +3,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
-
-#include "liblua/src/lua.h"
-#include "liblua/src/lauxlib.h"
+#include <lua.h>
+#include <lauxlib.h>
 
 #define LUACMSGPACK_VERSION     "lua-cmsgpack 0.3.0"
 #define LUACMSGPACK_COPYRIGHT   "Copyright (C) 2012, Salvatore Sanfilippo"

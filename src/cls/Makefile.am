@@ -52,8 +52,14 @@ libcls_rgw_la_LIBADD = libjson_spirit.la $(PTHREAD_LIBS) $(EXTRALIBS)
 libcls_rgw_la_LDFLAGS = ${AM_LDFLAGS} -version-info 1:0:0 -export-symbols-regex '.*__cls_.*'
 radoslib_LTLIBRARIES += libcls_rgw.la
 
-libcls_lua_la_SOURCES = cls/lua/cls_lua.cc cls/lua/cls_lua.h
-libcls_lua_la_LIBADD = liblua/liblua.la
+libcls_lua_la_SOURCES = \
+	cls/lua/cls_lua.cc \
+	cls/lua/cls_lua.h \
+	cls/lua/lua_bufferlist.cc \
+	cls/lua/lua_cmsgpack.c
+libcls_lua_la_CFLAGS = $(LUA_CFLAGS) $(AM_CFLAGS)
+libcls_lua_la_CXXFLAGS = $(LUA_CFLAGS) $(AM_CXXFLAGS)
+libcls_lua_la_LIBADD = $(LUA_LIBS)
 libcls_lua_la_LDFLAGS = ${AM_LDFLAGS} -version-info 1:0:0 -export-symbols-regex '.*__cls_.*'
 	radoslib_LTLIBRARIES += libcls_lua.la
 radoslib_LTLIBRARIES += libcls_lua.la
@@ -103,7 +109,12 @@ noinst_LTLIBRARIES += libcls_rbd_client.la
 
 libcls_lua_client_la_SOURCES = \
 	cls/lua/cls_lua_client.cc \
+	cls/lua/lua_bufferlist.cc \
+	cls/lua/lua_cmsgpack.c \
 	cls/lua/cls_lua_client.hpp
+libcls_lua_client_la_CFLAGS = $(LUA_CFLAGS) $(LUA_CFLAGS)
+libcls_lua_client_la_CXXFLAGS = $(LUA_CFLAGS) $(LUA_CXXFLAGS)
+libcls_lua_client_la_LIBADD = $(LUA_LIBS)
 lib_LTLIBRARIES += libcls_lua_client.la
 
 libcls_lua_client_includedir = $(includedir)/cls_lua

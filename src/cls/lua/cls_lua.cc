@@ -5,7 +5,7 @@
 #include <setjmp.h>
 #include <string>
 #include <sstream>
-#include "liblua/lua.hpp"
+#include <lua.hpp>
 #include "include/types.h"
 #include "objclass/objclass.h"
 #include "cls/lua/cls_lua.h"
