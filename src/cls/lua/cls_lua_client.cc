@@ -36,18 +36,27 @@ namespace cls_lua_client {
      * valid reply, in the former not so much.
      */
     ret = ioctx.exec(oid, "lua", "eval", inbl, outbl);
-    if (ret < 0)
-      return ret;
 
+    /*
+     * Decode the response. Since the same class method is used for both read
+     * and write operations, there are a couple cases. If there is an error
+     * (ret != 0) then the reply structure should always be present. In all
+     * other cases (e.g. a successful write or read) we decode if the output
+     * is not empty.
+     */
     try {
-      ::decode(reply, outbl);
+      if (ret)
+        assert(outbl.length());
+      if (outbl.length()) {
+        bufferlist::iterator iter = outbl.begin();
+        ::decode(reply, iter);
+        output = reply.output;
+        if (log)
+          log->swap(reply.log);
+      }
     } catch (const buffer::error &err) {
       return -EBADMSG;
     }
-
-    output = reply.output;
-    if (log)
-      log->swap(reply.log);
 
     return ret;
   }
