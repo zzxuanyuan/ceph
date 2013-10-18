@@ -405,6 +405,14 @@ static const luaL_Reg clslua_lib[] = {
  */
 static void clslua_setup_env(lua_State *L)
 {
+  /*
+   * TODO: luaL_openlibs will create a non-sandboxed environment. a fairly
+   * decent sandbox is omitted below in the `#if 0` block. Some method to
+   * configure the sandbox used should be created (e.g. g_conf->cls_lua_use_sandbox).
+   */
+  luaL_openlibs(L);
+
+#if 0
   /* load base Lua library */
   lua_pushcfunction(L, luaopen_base);
   lua_pushstring(L, "");
@@ -441,6 +449,7 @@ static void clslua_setup_env(lua_State *L)
   lua_pushcfunction(L, luaopen_debug);
   lua_pushstring(L, LUA_DBLIBNAME);
   lua_call(L, 1, 0);
+#endif
 
   /* save normal pcall method */
   lua_pushlightuserdata(L, &clslua_pcall_reg_key);
