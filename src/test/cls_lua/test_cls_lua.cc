@@ -88,7 +88,7 @@ class ClsLua : public ::testing::Test {
         inbl = *input;
 
       return cls_lua_client::exec(ioctx, oid, script, funcname, inbl,
-          reply_output, &reply_log);
+          reply_output);
     }
 
     int clslua_exec(const string& script, librados::bufferlist *input = NULL,
@@ -103,7 +103,6 @@ class ClsLua : public ::testing::Test {
     static string test_script;
 
     string oid;
-    vector<string> reply_log;
     bufferlist reply_output;
 
     lua_State *L;
@@ -347,7 +346,6 @@ TEST_F(ClsLua, BufferlistEquality) {
 
 TEST_F(ClsLua, RunError) {
   ASSERT_EQ(-EIO, clslua_exec(test_script, NULL, "runerr_c"));
-  ASSERT_GT((int)reply_log.size(), 0);
 }
 
 TEST_F(ClsLua, HandleNotFunc) {
@@ -388,13 +386,6 @@ TEST_F(ClsLua, Register) {
   /* cannot register handler multiple times */
   script = "function h() end; cls.register(h); cls.register(h);";
   ASSERT_EQ(-EIO, clslua_exec(script, NULL, ""));
-}
-
-TEST_F(ClsLua, ClsLog) {
-  string script = "cls.log('la tee da'); cls.log('coffee');";
-  ASSERT_EQ(0, clslua_exec(script));
-  ASSERT_EQ(reply_log[0], "la tee da");
-  ASSERT_EQ(reply_log[1], "coffee");
 }
 
 TEST_F(ClsLua, BufferlistCompare) {

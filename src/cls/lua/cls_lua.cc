@@ -38,8 +38,8 @@ struct clslua_err {
 
 struct clslua_hctx {
   struct clslua_err error;
-  struct clslua_cmd cmd;
-  struct clslua_reply reply;
+  bufferlist *inbl;
+  bufferlist *outbl;
   cls_method_context_t *hctx;
   int ret;
 };
@@ -120,7 +120,6 @@ static int clslua_pcall(lua_State *L)
  */
 static int clslua_log(lua_State *L)
 {
-  struct clslua_hctx *hctx = __clslua_get_hctx(L);
   int nargs = lua_gettop(L);
 
   if (!nargs)
@@ -158,7 +157,6 @@ static int clslua_log(lua_State *L)
   /* join string parts and send to Ceph/reply log */
   lua_concat(L, nelems);
   CLS_LOG(loglevel, "%s", lua_tostring(L, -1));
-  hctx->reply.log.push_back(lua_tostring(L, -1));
 
   /* concat leaves result at top of stack */
   return 1;
@@ -514,7 +512,6 @@ static void clslua_setup_env(lua_State *L)
 static int clslua_eval(lua_State *L)
 {
   struct clslua_hctx *ctx = __clslua_get_hctx(L);
-  const char *funcname = ctx->cmd.funcname.c_str();
   ctx->ret = -EIO; /* assume failure */
 
   /*
@@ -522,6 +519,31 @@ static int clslua_eval(lua_State *L)
    * be done before loading/compiling the chunk.
    */
   clslua_setup_env(L);
+
+  /*
+   * Deserialize the input that contains the script, the name of the handler
+   * to call, and the handler input.
+   */
+  lua_getglobal(L, "cmsgpack");
+  lua_getfield(L, -1, "unpack");
+  lua_pushlstring(L, ctx->inbl->c_str(), ctx->inbl->length());
+  lua_call(L, 1, 1); /* puts the unpacked array on the stack */
+
+  /* submitted lua script */
+  lua_pushinteger(L, 1);
+  lua_gettable(L, -2);
+  const char *script = lua_tolstring(L, -1, NULL);
+
+  /* name of handler function */
+  lua_pushinteger(L, 2);
+  lua_gettable(L, -3);
+  const char *funcname = lua_tolstring(L, -1, NULL);
+
+  /* handler input */
+  lua_pushinteger(L, 3);
+  lua_gettable(L, -4);
+  size_t input_len;
+  const char *input = lua_tolstring(L, -1, &input_len);
 
   /*
    * Create table to hold registered (valid) handlers.
@@ -535,7 +557,7 @@ static int clslua_eval(lua_State *L)
   lua_settable(L, LUA_REGISTRYINDEX);
 
   /* load and compile chunk */
-  if (luaL_loadstring(L, ctx->cmd.script.c_str()))
+  if (luaL_loadstring(L, script))
     return lua_error(L);
 
   /* execute chunk */
@@ -558,9 +580,12 @@ static int clslua_eval(lua_State *L)
   /* throw error if function is not registered */
   clslua_check_registered_handler(L);
 
-  /* create input/output bufferlist objects */
-  clslua_pushbufferlist(L, &ctx->cmd.input);
-  clslua_pushbufferlist(L, &ctx->reply.output);
+  /* setup the input/output bufferlists */
+  bufferptr inbp(input, input_len);
+  bufferlist inbl;
+  inbl.push_back(inbp);
+  clslua_pushbufferlist(L, &inbl);
+  clslua_pushbufferlist(L, ctx->outbl);
 
   /*
    * Call the target Lua object class handler. If the call is successful then
@@ -587,17 +612,10 @@ static int eval(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
   lua_State *L = NULL;
   int ret = -EIO;
 
-  try {
-    bufferlist::iterator iter = in->begin();
-    ::decode(ctx.cmd, iter);
-  } catch (const buffer::error &err) {
-    CLS_ERR("error decoding input command structure");
-    ret = -EINVAL;
-    goto out;
-  }
-
-  /* save context */
+  /* stash context for use in Lua VM */
   ctx.hctx = &hctx;
+  ctx.inbl = in;
+  ctx.outbl = out;
   ctx.error.error = false;
 
   /* build lua vm state */
@@ -620,7 +638,7 @@ static int eval(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
     lua_pushlightuserdata(L, &ctx);
     lua_settable(L, LUA_REGISTRYINDEX);
 
-    /* Process and run the script */
+    /* Process the input and run the script */
     lua_pushcfunction(L, clslua_eval);
     ret = lua_pcall(L, 0, 0, 0);
 
@@ -646,7 +664,6 @@ static int eval(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
         ret = -EIO; /* Generic error code */
 
       CLS_ERR("error: %s", lua_tostring(L, -1));
-      ctx.reply.log.push_back(lua_tostring(L, -1));
 
     } else {
       /*
@@ -664,7 +681,6 @@ static int eval(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
 out:
   if (L)
     lua_close(L);
-  ::encode(ctx.reply, *out);
   return ret;
 }
 

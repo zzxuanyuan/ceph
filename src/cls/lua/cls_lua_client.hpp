@@ -13,8 +13,7 @@ namespace cls_lua_client {
 
   int exec(librados::IoCtx& ioctx, const std::string& oid,
       const std::string& script, const std::string& handler,
-      librados::bufferlist& inbl, librados::bufferlist& outbl,
-      std::vector<std::string> *log = NULL);
+      librados::bufferlist& inbl, librados::bufferlist& outbl);
 }
 
 #endif

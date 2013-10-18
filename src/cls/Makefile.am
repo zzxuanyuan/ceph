@@ -115,11 +115,7 @@ libcls_lua_client_la_SOURCES = \
 libcls_lua_client_la_CFLAGS = $(LUA_CFLAGS) $(LUA_CFLAGS)
 libcls_lua_client_la_CXXFLAGS = $(LUA_CFLAGS) $(LUA_CXXFLAGS)
 libcls_lua_client_la_LIBADD = $(LUA_LIBS)
-lib_LTLIBRARIES += libcls_lua_client.la
-
-libcls_lua_client_includedir = $(includedir)/cls_lua
-libcls_lua_client_include_DATA = \
-	$(srcdir)/cls/lua/cls_lua_client.hpp
+noinst_LTLIBRARIES += libcls_lua_client.la
 
 noinst_HEADERS += \
 	cls/lock/cls_lock_types.h \

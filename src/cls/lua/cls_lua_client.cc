@@ -16,18 +16,48 @@ using librados::bufferlist;
 namespace cls_lua_client {
 
   int exec(IoCtx& ioctx, const string& oid, const string& script,
-      const string& handler, bufferlist& input, bufferlist& output,
-      vector<string> *log)
+      const string& handler, bufferlist& input, bufferlist& output)
   {
-    struct clslua_cmd cmd;
-    struct clslua_reply reply;
-    bufferlist outbl, inbl;
     int ret;
 
-    cmd.script = script;
-    cmd.funcname = handler;
-    cmd.input = input;
-    ::encode(cmd, inbl);
+    lua_State *L = luaL_newstate();
+    assert(L);
+
+    /* load msgpack lib */
+    lua_pushcfunction(L, luaopen_cmsgpack);
+    lua_pushstring(L, "cmsgpack");
+    lua_call(L, 1, 0);
+
+    lua_getglobal(L, "cmsgpack");
+    lua_getfield(L, -1, "pack");
+
+    lua_newtable(L);
+
+    /* set script at index = 1 */
+    lua_pushinteger(L, 1);
+    lua_pushstring(L, script.c_str());
+    lua_settable(L, -3);
+
+    /* set handler name at index = 2 */
+    lua_pushinteger(L, 2);
+    lua_pushstring(L, handler.c_str());
+    lua_settable(L, -3);
+
+    /* set handler input at index = 3 */
+    lua_pushinteger(L, 3);
+    lua_pushlstring(L, input.c_str(), input.length());
+    lua_settable(L, -3);
+
+    /* call cmsgpack.pack */
+    lua_call(L, 1, 1);
+
+    /* setup the input / output */
+    size_t input_len;
+    const char *input_str = lua_tolstring(L, -1, &input_len);
+
+    bufferptr inbp(input_str, input_len);
+    bufferlist inbl, outbl;
+    inbl.push_back(inbp);
 
     /*
      * TODO: we need to encapsulate the return value as well. for example,
@@ -35,28 +65,7 @@ namespace cls_lua_client {
      * -ENOTSUPP if a handler isn't found. In the later case we still get a
      * valid reply, in the former not so much.
      */
-    ret = ioctx.exec(oid, "lua", "eval", inbl, outbl);
-
-    /*
-     * Decode the response. Since the same class method is used for both read
-     * and write operations, there are a couple cases. If there is an error
-     * (ret != 0) then the reply structure should always be present. In all
-     * other cases (e.g. a successful write or read) we decode if the output
-     * is not empty.
-     */
-    try {
-      if (ret)
-        assert(outbl.length());
-      if (outbl.length()) {
-        bufferlist::iterator iter = outbl.begin();
-        ::decode(reply, iter);
-        output = reply.output;
-        if (log)
-          log->swap(reply.log);
-      }
-    } catch (const buffer::error &err) {
-      return -EBADMSG;
-    }
+    ret = ioctx.exec(oid, "lua", "eval", inbl, output);
 
     return ret;
   }
