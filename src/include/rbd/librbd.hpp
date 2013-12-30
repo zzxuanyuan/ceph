@@ -47,20 +47,20 @@ namespace librbd {
 
   typedef rbd_image_info_t image_info_t;
 
-  class ProgressContext
+  class CEPH_EXPORT ProgressContext
   {
   public:
     virtual ~ProgressContext();
     virtual int update_progress(uint64_t offset, uint64_t total) = 0;
   };
 
-class RBD
+class CEPH_EXPORT RBD
 {
 public:
   RBD();
   ~RBD();
 
-  struct AioCompletion {
+  struct CEPH_EXPORT AioCompletion {
     void *pc;
     AioCompletion(void *cb_arg, callback_t complete_cb);
     bool is_complete();
@@ -99,7 +99,7 @@ private:
   const RBD& operator=(const RBD& rhs);
 };
 
-class Image
+class CEPH_EXPORT Image
 {
 public:
   Image();

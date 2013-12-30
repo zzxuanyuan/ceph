@@ -58,7 +58,7 @@ namespace librados
   typedef void *completion_t;
   typedef void (*callback_t)(completion_t cb, void *arg);
 
-  class ObjectIterator : public std::iterator <std::forward_iterator_tag, std::string> {
+  class CEPH_EXPORT ObjectIterator : public std::iterator <std::forward_iterator_tag, std::string> {
   public:
     static const ObjectIterator __EndObjectIterator;
     ObjectIterator() {}
@@ -84,13 +84,13 @@ namespace librados
     std::pair<std::string, std::string> cur_obj;
   };
 
-  class WatchCtx {
+  class CEPH_EXPORT WatchCtx {
   public:
     virtual ~WatchCtx();
     virtual void notify(uint8_t opcode, uint64_t ver, bufferlist& bl) = 0;
   };
 
-  struct AioCompletion {
+  struct CEPH_EXPORT AioCompletion {
     AioCompletion(AioCompletionImpl *pc_) : pc(pc_) {}
     int set_complete_callback(void *cb_arg, callback_t cb);
     int set_safe_callback(void *cb_arg, callback_t cb);
@@ -109,7 +109,7 @@ namespace librados
     AioCompletionImpl *pc;
   };
 
-  struct PoolAsyncCompletion {
+  struct CEPH_EXPORT PoolAsyncCompletion {
     PoolAsyncCompletion(PoolAsyncCompletionImpl *pc_) : pc(pc_) {}
     int set_callback(void *cb_arg, callback_t cb);
     int wait();
@@ -128,7 +128,7 @@ namespace librados
     OP_FAILOK = 2,
   };
 
-  class ObjectOperationCompletion {
+  class CEPH_EXPORT ObjectOperationCompletion {
   public:
     virtual ~ObjectOperationCompletion() {}
     virtual void handle_completion(int r, bufferlist& outbl) = 0;
@@ -169,7 +169,7 @@ namespace librados
    * Batch multiple object operations into a single request, to be applied
    * atomically.
    */
-  class ObjectOperation
+  class CEPH_EXPORT ObjectOperation
   {
   public:
     ObjectOperation();
@@ -234,7 +234,7 @@ namespace librados
    * Batch multiple object operations into a single request, to be applied
    * atomically.
    */
-  class ObjectWriteOperation : public ObjectOperation
+  class CEPH_EXPORT ObjectWriteOperation : public ObjectOperation
   {
   protected:
     time_t *pmtime;
@@ -344,7 +344,7 @@ namespace librados
    * Batch multiple object operations into a single request, to be applied
    * atomically.
    */
-  class ObjectReadOperation : public ObjectOperation
+  class CEPH_EXPORT ObjectReadOperation : public ObjectOperation
   {
   public:
     ObjectReadOperation() {}
@@ -473,7 +473,7 @@ namespace librados
    * p->stat(&stats);
    * ... etc ...
    */
-  class IoCtx
+  class CEPH_EXPORT IoCtx
   {
   public:
     IoCtx();
@@ -822,7 +822,7 @@ namespace librados
     IoCtxImpl *io_ctx_impl;
   };
 
-  class Rados
+  class CEPH_EXPORT Rados
   {
   public:
     static void version(int *major, int *minor, int *extra);

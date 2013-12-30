@@ -14,9 +14,11 @@
 #include <sstream>
 #include "Crypto.h"
 #ifdef USE_CRYPTOPP
+# pragma GCC visibility push(default)
 # include <cryptopp/modes.h>
 # include <cryptopp/aes.h>
 # include <cryptopp/filters.h>
+# pragma GCC visibility pop
 #elif USE_NSS
 # include <nspr.h>
 # include <nss.h>

@@ -11,9 +11,11 @@
 #ifdef USE_CRYPTOPP
 # define CRYPTOPP_ENABLE_NAMESPACE_WEAK 1
 #include <string.h>
+# pragma GCC visibility push(default)
 # include <cryptopp/md5.h>
 # include <cryptopp/sha.h>
 # include <cryptopp/hmac.h>
+# pragma GCC visibility pop
 
 // reinclude our assert to clobber the system one
 # include "include/assert.h"
