@@ -739,12 +739,12 @@ void MDS::tick()
   check_ops_in_flight();
 }
 
-void notify_stuck_client(const entity_inst_t &client)
+void MDS::notify_stuck_client(const entity_inst_t &client)
 {
   stuck_clients[client] = ceph_click_now(g_ceph_context);
 }
 
-void check_stuck_clients()
+void MDS::check_stuck_clients()
 {
   std::list<entity_inst_t> trash;
 
