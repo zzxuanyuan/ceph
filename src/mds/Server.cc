@@ -592,7 +592,10 @@ void Server::handle_client_reconnect(MClientReconnect *m)
   dout(10) << " reconnect_start " << reconnect_start << " delay " << delay << dendl;
 
   if (!mds->is_reconnect()) {
-    // XXX maybe in the future we can do better than this?
+    // These clients are unrecoverable: they want to reconnect, but they have missed the
+    // reconnect window.  The best we can do is tell them to close their session, and record
+    // that the client is in a stuck state somewhere the admin can see it.
+    mds->notify_stuck_client(session->info.inst);
     dout(1) << " no longer in reconnect state, ignoring reconnect, sending close" << dendl;
     mds->clog.info() << "denied reconnect attempt (mds is "
        << ceph_mds_state_name(mds->get_state())
@@ -609,6 +612,13 @@ void Server::handle_client_reconnect(MClientReconnect *m)
 	<< ceph_mds_state_name(mds->get_state())
 	<< ") from " << m->get_source_inst() << " (session is closed)\n";
     mds->messenger->send_message(new MClientSession(CEPH_SESSION_CLOSE), m->get_connection());
+    m->put();
+    return;
+  }
+
+  if (g_conf->mds_inject_reconnect_fail) {
+    dout(1) << "synthetic failure: rejecting client reconnect from " << m->get_source_inst() << dendl;
+    // Give client the silent treatment
     m->put();
     return;
   }

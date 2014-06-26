@@ -734,7 +734,35 @@ void MDS::tick()
       snapserver->check_osd_map(false);
   }
 
+  check_stuck_clients();
+
   check_ops_in_flight();
+}
+
+void notify_stuck_client(const entity_inst_t &client)
+{
+  stuck_clients[client] = ceph_click_now(g_ceph_context);
+}
+
+void check_stuck_clients()
+{
+  std::list<entity_inst_t> trash;
+
+  for (std::map<entity_inst_t, utime_t>::iterator i = stuck_clients.begin() i != stuck_clients.end(); ++i) {
+    // For clients marked stuck, see if time since stuck notification is
+    // greater than our forget period
+    if (i->second < ceph_clock_now(g_ceph_context) - 600) {
+      dout(1) << "stuck client went away: " << i->first << dendl;
+      trash.push_back(i->first);
+    }
+  
+    // For clients that are stuck, log
+    dout(1) << "stuck client: " << i->first << dendl;
+  }
+
+  for (std::list<entity_inst_t>::iterator i = trash.begin(); i != trash.end(); ++i) {
+    stuck_clients.erase(*i);
+  }
 }
 
 void MDS::check_ops_in_flight()

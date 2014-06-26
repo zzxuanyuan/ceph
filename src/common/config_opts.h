@@ -372,6 +372,7 @@ OPTION(mds_kill_journal_expire_at, OPT_INT, 0)
 OPTION(mds_kill_journal_replay_at, OPT_INT, 0)
 OPTION(mds_journal_format, OPT_U32, 1)  // Default to most recent JOURNAL_FORMAT_*
 OPTION(mds_kill_create_at, OPT_INT, 0)
+OPTION(mds_inject_reconnect_fail, OPT_BOOL, false)
 OPTION(mds_inject_traceless_reply_probability, OPT_DOUBLE, 0) /* percentage
 				of MDS modify replies to skip sending the
 				client a trace on [0-1]*/
