@@ -44,6 +44,8 @@
 #include "global/global_context.h"
 #include "include/assert.h"
 
+#include "common/Continuation.h"
+
 #define dout_subsys ceph_subsys_mds
 #undef dout_prefix
 #define dout_prefix *_dout << "mds." << mdcache->mds->get_nodeid() << ".cache.ino(" << inode.ino << ") "
@@ -3467,3 +3469,153 @@ void InodeStore::generate_test_instances(list<InodeStore*> &ls)
   ls.push_back(populated);
 }
 
+class ValidationContinuation : public Continuation {
+public:
+  CInode *inode;
+  CInode::validated_data *results;
+  bufferlist bl;
+
+  ValidationContinuation(CInode *i,
+                         CInode::validated_data *data_r,
+                         Context *fin) :
+                           Continuation(fin),
+                           inode(i),
+                           results(data_r) {}
+
+  bool _continue_function(int r, int n) {
+    return inode->_validate_disk_state(this, r, n);
+  }
+};
+
+void CInode::validate_disk_state(CInode::validated_data *results,
+                                 Context *fin)
+{
+  ValidationContinuation *vc = new ValidationContinuation(this,
+                                                          results,
+                                                          fin);
+  vc->begin();
+}
+
+bool CInode::_validate_disk_state(ValidationContinuation *c,
+                                  int rval, int stage)
+{
+  enum {
+    START = 0,
+    BACKTRACE,
+    DIRFRAGS
+  };
+  switch (stage) {
+  case START: // kick off the backtrace fetch
+  {
+    if (is_dirty()) {
+      dout(20) << "validating a dirty CInode; results will be inconclusive"
+               << dendl;
+    }
+
+    fetch_backtrace(&c->bl,
+                    new C_OnFinisher(c->get_callback(BACKTRACE),
+				     &mdcache->mds->finisher));
+    return false;
+  }
+  assert(0 == "can't have reached here!");
+  break;
+
+  case BACKTRACE: // check the backtrace and
+  {
+    // set up basic result reporting and make sure we got the data
+    c->results->performed_validation = true; // at least, some of it!
+    c->results->passed_validation = false; // we haven't finished it yet
+    c->results->backtrace.checked = true;
+    c->results->backtrace.ondisk_read_retval = rval;
+    c->results->backtrace.passed = false; // we'll set it true if we make it
+    if (rval != 0) {
+      return true;
+    }
+
+    // extract the backtrace, and compare it to a newly-constructed one
+    bufferlist::iterator p = c->bl.begin();
+    ::decode(c->results->backtrace.ondisk_value, p);
+    int64_t pool;
+    if (is_dir())
+      pool = mdcache->mds->mdsmap->get_metadata_pool();
+    else
+      pool = inode.layout.fl_pg_pool;
+    inode_backtrace_t& memory_backtrace = c->results->backtrace.memory_value;
+    build_backtrace(pool, memory_backtrace);
+    bool equivalent, divergent;
+    int memory_newer =
+        memory_backtrace.compare(c->results->backtrace.ondisk_value,
+                                 &equivalent, &divergent);
+    if (equivalent) {
+      c->results->backtrace.passed = true;
+    } else {
+      c->results->backtrace.passed = false; // we couldn't validate :(
+      if (divergent || memory_newer <= 0) {
+        // we're divergent, or don't have a newer version to write
+        return true;
+      }
+    }
+
+    // quit if we're a file, or kick off directory checks otherwise
+    if (is_file() || is_symlink()) {
+      c->results->passed_validation = true;
+      return true;
+    }
+
+    assert(is_dir());
+    MDSGatherBuilder gather(g_ceph_context);
+    for (map<frag_t,CDir*>::iterator p = dirfrags.begin();
+         p != dirfrags.end();
+         ++p) {
+      if (!p->second->is_complete())
+        p->second->fetch(gather.new_sub(), false);
+    }
+    if (gather.has_subs()) {
+      gather.set_finisher(new MDSInternalContextWrapper(mdcache->mds,
+                                                        c->get_callback(DIRFRAGS)));
+      gather.activate();
+      return false;
+    }
+    // we deliberately fall-thru to DIRFRAGS if we're already complete
+    // TODO: ugh lack of actually checking disk state :(
+  }
+
+  case DIRFRAGS:
+  {
+    // basic reporting setup
+    c->results->raw_rstats.checked = true;
+    c->results->raw_rstats.ondisk_read_retval = rval;
+    c->results->raw_rstats.passed = false; // we'll set it true if we make it
+    if (rval != 0) {
+      return true;
+    }
+
+    // TODO: check the actual inode didn't change, or somehow validate it
+
+    // check each dirfrag...
+    nest_info_t& sub_info = c->results->raw_rstats.ondisk_value;
+    for (map<frag_t,CDir*>::iterator p = dirfrags.begin();
+        p != dirfrags.end();
+        ++p) {
+      assert(p->second->is_complete());
+      // TODO: report failure of this instead of asserting
+      assert(p->second->check_rstats());
+      sub_info.add(p->second->fnode.accounted_rstat);
+    }
+    // ...and that their sum matches our inode settings
+    c->results->raw_rstats.memory_value = inode.rstat;
+    sub_info.rsubdirs++; // it gets one to account for self
+    if (!(sub_info == inode.rstat)) {
+      return true;
+    }
+    c->results->raw_rstats.passed = true;
+    // Hurray! We made it through!
+  }
+  break;
+
+  } // switch
+
+  c->results->passed_validation = true;
+
+  return true;
+}
