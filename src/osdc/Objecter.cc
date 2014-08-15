@@ -553,7 +553,7 @@ void Objecter::_scan_requests(OSDSession *s,
     ++lp;   // check_linger_pool_dne() may touch linger_ops; prevent iterator invalidation
     ldout(cct, 10) << " checking linger op " << op->linger_id << dendl;
     bool unregister;
-    int r = _calc_target(&op->target);
+    int r = _recalc_linger_op_target(op, lc);
     switch (r) {
     case RECALC_OP_TARGET_NO_ACTION:
       if (!force_resend && !force_resend_writes)
