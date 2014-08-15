@@ -2040,7 +2040,7 @@ int Objecter::_recalc_linger_op_target(LingerOp *linger_op, RWLock::Context& lc)
 
     if (linger_op->session != s) {
       linger_op->session = s;
-      s->linger_ops[linger_op->register_tid] = linger_op;
+      s->linger_ops[linger_op->linger_id] = linger_op;
     }
 
     s->lock.unlock();
