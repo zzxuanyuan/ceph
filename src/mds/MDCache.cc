@@ -7972,8 +7972,7 @@ void MDCache::_open_ino_backtrace_fetched(inodeno_t ino, bufferlist& bl, int err
       info.pool = backtrace.pool;
       C_IO_MDC_OpenInoBacktraceFetched *fin =
 	new C_IO_MDC_OpenInoBacktraceFetched(this, ino);
-      fetch_backtrace(ino, info.pool, fin->bl,
-		      new C_OnFinisher(fin, &mds->finisher));
+      fetch_backtrace(ino, info.pool, fin->bl, fin);
       return;
     }
   } else if (err == -ENOENT) {
@@ -7984,8 +7983,7 @@ void MDCache::_open_ino_backtrace_fetched(inodeno_t ino, bufferlist& bl, int err
       info.pool = meta_pool;
       C_IO_MDC_OpenInoBacktraceFetched *fin =
 	new C_IO_MDC_OpenInoBacktraceFetched(this, ino);
-      fetch_backtrace(ino, info.pool, fin->bl,
-		      new C_OnFinisher(fin, &mds->finisher));
+      fetch_backtrace(ino, info.pool, fin->bl, fin);
       return;
     }
   }
@@ -8211,8 +8209,7 @@ void MDCache::do_open_ino(inodeno_t ino, open_ino_info_t& info, int err)
     info.checked.insert(mds->get_nodeid());
     C_IO_MDC_OpenInoBacktraceFetched *fin =
       new C_IO_MDC_OpenInoBacktraceFetched(this, ino);
-    fetch_backtrace(ino, info.pool, fin->bl,
-		    new C_OnFinisher(fin, &mds->finisher));
+    fetch_backtrace(ino, info.pool, fin->bl, fin);
   } else {
     assert(!info.ancestors.empty());
     info.checking = mds->get_nodeid();
@@ -9117,10 +9114,11 @@ void MDCache::eval_remote(CDentry *dn)
   }
 }
 
-void MDCache::fetch_backtrace(inodeno_t ino, int64_t pool, bufferlist& bl, Context *fin)
+void MDCache::fetch_backtrace(inodeno_t ino, int64_t pool, bufferlist& bl, MDSIOContextBase *fin)
 {
   object_t oid = CInode::get_object_name(ino, frag_t(), "");
-  mds->objecter->getxattr(oid, object_locator_t(pool), "parent", CEPH_NOSNAP, &bl, 0, fin);
+  mds->objecter->getxattr(oid, object_locator_t(pool), "parent", CEPH_NOSNAP, &bl, 0,
+      new C_OnFinisher(fin, &mds->finisher));
 }
 
 class C_IO_MDC_PurgeStrayPurged : public MDCacheIOContext {
