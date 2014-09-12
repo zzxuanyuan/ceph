@@ -219,6 +219,11 @@ Client::~Client()
 {
   assert(!client_lock.is_locked());
 
+  assert(mds_requests.empty());
+  assert(inode_map.empty());
+  assert(snap_realms.empty());
+  assert(fd_map.empty());
+
   tear_down_cache();
 
   delete objectcacher;
@@ -1872,6 +1877,7 @@ void Client::handle_client_reply(MClientReply *reply)
       // have to return ESTALE
     } else {
       request->caller_cond->Signal();
+      reply->put();
       return;
     }
     ldout(cct, 20) << "have to return ESTALE" << dendl;
