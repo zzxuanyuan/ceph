@@ -32,7 +32,29 @@ class Continuation {
     }
   };
   protected:
-  virtual bool _continue_function(int r, int stage) = 0;
+  bool _continue_function(int r, int n) {
+    assert(callbacks.count(n));
+    stagePtr p = callbacks[n];
+    return (this->*p)(r, n);
+  }
+
+  typedef bool (Continuation::*stagePtr)(int r, int n);
+  std::map<int, Continuation::stagePtr> callbacks;
+
+  Context *immediate_cb;
+  int immediate_r;
+
+  void immediate(int stage, int r) {
+    assert(immediate_cb == NULL);
+    immediate_cb = get_callback(stage);
+    immediate_r = r;
+  }
+
+  Context *get_callback(int stage) {
+    stages_in_flight.insert(stage);
+    return new Callback(this, stage);
+  }
+
   private:
   void continue_function(int r, int stage) {
     set<int>::iterator stage_iter = stages_in_flight.find(stage);
@@ -40,24 +62,32 @@ class Continuation {
     bool done = _continue_function(r, stage);
     stages_in_flight.erase(stage_iter);
     assert (!done || stages_in_flight.empty());
-    if (done) {
-      on_finish->complete(rval);
-      on_finish = NULL;
-      delete this;
-      return;
+
+    if (immediate_cb) {
+      Context *icb = immediate_cb;
+      int const ir = immediate_r;
+      immediate_cb = NULL;
+      immediate_r = 0;
+      icb->complete(ir);
+    } else {
+      if (done) {
+        on_finish->complete(rval);
+        on_finish = NULL;
+        delete this;
+        return;
+      }
     }
   }
 
+
+
 public:
   Continuation(Context *c) :
-    rval(0), on_finish(c) {}
+    rval(0), on_finish(c), immediate_cb(NULL), immediate_r(0) {}
   virtual ~Continuation() { assert(on_finish == NULL); }
 
   void begin() { stages_in_flight.insert(0); continue_function(0, 0); }
 
-  Context *get_callback(int stage) {
-    stages_in_flight.insert(stage);
-    return new Callback(this, stage);
-  }
+
   void set_rval(int new_rval) { rval = new_rval; }
 };
