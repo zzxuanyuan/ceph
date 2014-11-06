@@ -57,6 +57,8 @@ int main(int argc, char **argv)
      "use sequential access pattern")
     ("disable-detailed-ops", po::value<bool>()->default_value(false),
      "don't dump per op stats")
+    ("features", po::value<uint64_t>(),
+     "image features")
     ;
 
   po::variables_map vm;
@@ -137,7 +139,12 @@ int main(int argc, char **argv)
     uint64_t image_size = ((uint64_t)vm["image-size"].as<unsigned>()) << 20;
     for (set<string>::const_iterator i = image_names.begin();
 	 i != image_names.end(); ++i) {
-      r = rbd.create(ioctx, i->c_str(), image_size, &order);
+      if (vm.count("features") == 0) {
+        r = rbd.create(ioctx, i->c_str(), image_size, &order);
+      } else {
+        r = rbd.create2(ioctx, i->c_str(), image_size,
+                        vm["features"].as<uint64_t>(), &order);
+      }
       if (r < 0) {
 	cerr << "error creating image " << *i << " r=" << r << std::endl;
 	return -r;
