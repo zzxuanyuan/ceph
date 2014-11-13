@@ -135,7 +135,7 @@ class RadosThread(threading.Thread):
     def __init__(self, target, args=None):
         self.args = args
         self.target = target
-        threading.Thread.__init__(self)
+        threading.Thread.__init__(self, name="%s(%s)" % (target.__name__, str(args)))
 
     def run(self):
         self.retval = self.target(*self.args)
