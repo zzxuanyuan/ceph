@@ -297,6 +297,11 @@ void librados::RadosClient::shutdown()
   }
   state = DISCONNECTED;
   instance_id = 0;
+  //
+  // break out of any waiting in the connect thread
+  // XXX is monclient.authenticate() the only cause for worry?
+  monclient.terminate_auth();
+
   timer.shutdown();   // will drop+retake lock
   lock.Unlock();
   if (need_objecter)
