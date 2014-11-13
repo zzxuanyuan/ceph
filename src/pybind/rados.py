@@ -20,8 +20,12 @@ class Error(Exception):
     """ `Error` class, derived from `Exception` """
     pass
 
-class InterruptedOrTimeoutError(Error):
-    """ `InterruptedOrTimeoutError` class, derived from `Error` """
+class InterruptedError(Error):
+    """ `InterruptedError` class, derived from `Error` """
+    pass
+
+class TimeoutError(Error):
+    """ `TimeoutError` class, derived from `Error` """
     pass
 
 class PermissionError(Error):
@@ -90,7 +94,7 @@ def make_ex(ret, msg):
         errno.ENOSPC    : NoSpace,
         errno.EEXIST    : ObjectExists,
         errno.ENODATA   : NoData,
-        errno.EINTR     : InterruptedOrTimeoutError,
+        errno.EINTR     : Interrupted,
         errno.ETIMEDOUT : TimedOut
         }
     ret = abs(ret)
@@ -132,6 +136,7 @@ class Version(object):
         return "%d.%d.%d" % (self.major, self.minor, self.extra)
 
 class RadosThread(threading.Thread):
+
     def __init__(self, target, args=None):
         self.args = args
         self.target = target
@@ -140,19 +145,14 @@ class RadosThread(threading.Thread):
     def run(self):
         self.retval = self.target(*self.args)
 
+
 # time in seconds between each call to t.join() for child thread
 POLL_TIME_INCR = 0.5
 
 def run_in_thread(target, args, timeout=0):
-    interrupt = False
 
     countdown = timeout
     t = RadosThread(target, args)
-
-    # allow the main thread to exit (presumably, avoid a join() on this
-    # subthread) before this thread terminates.  This allows SIGINT
-    # exit of a blocked call.  See below.
-    t.daemon = True
 
     t.start()
     try:
@@ -162,7 +162,7 @@ def run_in_thread(target, args, timeout=0):
             if timeout and t.is_alive():
                 countdown = countdown - POLL_TIME_INCR
                 if countdown <= 0:
-                    raise KeyboardInterrupt
+                    raise TimeoutError()
 
         t.join()        # in case t exits before reaching the join() above
     except KeyboardInterrupt:
@@ -172,10 +172,9 @@ def run_in_thread(target, args, timeout=0):
         # strictly guaranteed is that *some* thread that has the signal
         # unblocked will receive it).  But there doesn't seem to be
         # any interface to create t with SIGINT blocked.
-        interrupt = True
+	raise InterruptedError()
 
-    if interrupt:
-        t.retval = -errno.EINTR
+    # otherwise, return thread's return value
     return t.retval
 
 class Rados(object):

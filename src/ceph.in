@@ -672,12 +672,18 @@ def main():
         if childargs and childargs[0] == 'ping':
             return ping_monitor(cluster_handle, childargs[1])
         cluster_handle.connect(timeout=timeout)
-    except KeyboardInterrupt:
-        print >> sys.stderr, 'Cluster connection aborted'
-        return 1
+    except rados.InterruptedError:
+        print >> sys.stderr, 'Error connecting to cluster: interrupted'
+        cluster_handle.shutdown()
+        return -errno.EINTR
+    except rados.TimeoutError:
+        print >> sys.stderr, 'Error connecting to cluster: timed out'
+        cluster_handle.shutdown()
+        return -errno.ETIMEDOUT
     except Exception as e:
         print >> sys.stderr, 'Error connecting to cluster: {0}'.\
             format(e.__class__.__name__)
+        cluster_handle.shutdown()
         return 1
 
     if parsed_args.help:
