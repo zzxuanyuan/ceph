@@ -199,6 +199,7 @@ public:
   int wait_auth_rotating(double timeout);
 
   int authenticate(double timeout=0.0);
+  void terminate_auth(void);
 
   // mon subscriptions
 private:

@@ -453,6 +453,9 @@ int MonClient::authenticate(double timeout)
       if (r == ETIMEDOUT) {
 	ldout(cct, 0) << "authenticate timed out after " << timeout << dendl;
 	authenticate_err = -r;
+      } else if (r == EINTR) {
+	ldout(cct, 0) << "authenticate interrupted" << dendl;
+	authenticate_err = -r;
       }
     } else {
       auth_cond.Wait(monc_lock);
@@ -468,6 +471,12 @@ int MonClient::authenticate(double timeout)
   }
 
   return authenticate_err;
+}
+
+void MonClient::terminate_auth()
+{
+  authenticate_err = EINTR;
+  auth_cond.SloppySignal();
 }
 
 void MonClient::handle_auth(MAuthReply *m)
