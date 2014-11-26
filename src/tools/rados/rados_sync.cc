@@ -626,7 +626,7 @@ int BackedUpObject::upload(IoCtx &io_ctx, const char *file_name, const char *dir
 {
   char path[strlen(file_name) + strlen(dir_name) + 2];
   snprintf(path, sizeof(path), "%s/%s", dir_name, file_name);
-  FILE *fp = fopen(path, "r");
+  FILE *fp = fopen(path, "rb");
   if (!fp) {
     int err = errno;
     cerr << ERR_PREFIX << "upload: error opening '" << path << "': "
@@ -642,7 +642,7 @@ int BackedUpObject::upload(IoCtx &io_ctx, const char *file_name, const char *dir
     return ret;
   }
   uint64_t off = 0;
-  static const int CHUNK_SZ = 32765;
+  static const int CHUNK_SZ = 32768; ///< <davidzlap> nyov: Are you writing to an erasure coded pool?  I would change the CHUNK_SZ to  32768.
   while (true) {
     char buf[CHUNK_SZ];
     int flen = fread(buf, 1, CHUNK_SZ, fp);
@@ -660,18 +660,13 @@ int BackedUpObject::upload(IoCtx &io_ctx, const char *file_name, const char *dir
     // There must be a zero-copy way to do this?
     bufferlist bl;
     bl.append(buf, flen);
-    int rlen = io_ctx.write(rados_name, bl, flen, off);
-    if (rlen < 0) {
+    int ret = io_ctx.write(rados_name, bl, flen, off);
+    if (ret != 0) {
       fclose(fp);
-      cerr << ERR_PREFIX << "upload: rados_write error: " << rlen << std::endl;
-      return rlen;
+      cerr << ERR_PREFIX << "upload: rados_write error on file '" << rados_name << "'"<< std::endl;
+      return ret;
     }
-    if (rlen != flen) {
-      fclose(fp);
-      cerr << ERR_PREFIX << "upload: rados_write error: short write" << std::endl;
-      return -EIO;
-    }
-    off += rlen;
+    off += flen;
     if (flen < CHUNK_SZ) {
       fclose(fp);
       return 0;
