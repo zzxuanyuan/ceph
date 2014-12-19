@@ -2190,7 +2190,6 @@ reprotect_and_return_err:
       return r;
     }
 
-    uint64_t object_size;
     uint64_t overlap;
     uint64_t overlap_objects;
     ::SnapContext snapc;
@@ -2214,7 +2213,6 @@ reprotect_and_return_err:
       assert(ictx->parent != NULL);
       assert(ictx->parent_md.overlap <= ictx->size);
 
-      object_size = ictx->get_object_size();
       overlap = ictx->parent_md.overlap;
       overlap_objects = Striper::get_num_objects(ictx->layout, overlap); 
     }
@@ -2232,22 +2230,14 @@ reprotect_and_return_err:
 	}
       }
 
-      // map child object onto the parent
-      vector<pair<uint64_t,uint64_t> > objectx;
-      Striper::extent_to_file(cct, &ictx->layout,
-			    ono, 0, object_size,
-			    objectx);
-      uint64_t object_overlap = ictx->prune_parent_extents(objectx, overlap);
-      assert(object_overlap <= object_size);
-
       bufferlist bl;
       string oid = ictx->get_object_name(ono);
       Context *comp = new C_SimpleThrottle(&throttle);
-      AioWrite *req = new AioWrite(ictx, oid, ono, 0, objectx, object_overlap,
-				   bl, snapc, CEPH_NOSNAP, comp);
+      AioWrite *req = new AioWrite(ictx, oid, ono, 0, bl, snapc, comp);
       r = req->send();
       if (r < 0) {
 	lderr(cct) << "failed to flatten object " << oid << dendl;
+        comp->complete(r);
 	goto err;
       }
 
@@ -3009,16 +2999,8 @@ reprotect_and_return_err:
 	c->add_request();
 	ictx->write_to_cache(p->oid, bl, p->length, p->offset, req_comp);
       } else {
-	// reverse map this object extent onto the parent
-	vector<pair<uint64_t,uint64_t> > objectx;
-	Striper::extent_to_file(ictx->cct, &ictx->layout,
-			      p->objectno, 0, ictx->layout.fl_object_size,
-			      objectx);
-	uint64_t object_overlap = ictx->prune_parent_extents(objectx, overlap);
-
 	AioWrite *req = new AioWrite(ictx, p->oid.name, p->objectno, p->offset,
-				     objectx, object_overlap,
-				     bl, snapc, snap_id, req_comp);
+				     bl, snapc, req_comp);
 	c->add_request();
 
 	req->set_op_flags(op_flags);
@@ -3084,26 +3066,14 @@ reprotect_and_return_err:
       AbstractWrite *req;
       c->add_request();
 
-      // reverse map this object extent onto the parent
-      vector<pair<uint64_t,uint64_t> > objectx;
-      uint64_t object_overlap = 0;
-      if (off < overlap) {   // we might overlap...
-	Striper::extent_to_file(ictx->cct, &ictx->layout,
-			      p->objectno, 0, ictx->layout.fl_object_size,
-			      objectx);
-	object_overlap = ictx->prune_parent_extents(objectx, overlap);
-      }
-
       if (p->offset == 0 && p->length == ictx->layout.fl_object_size) {
-	req = new AioRemove(ictx, p->oid.name, p->objectno, objectx, object_overlap,
-			    snapc, snap_id, req_comp);
+	req = new AioRemove(ictx, p->oid.name, p->objectno, snapc, req_comp);
       } else if (p->offset + p->length == ictx->layout.fl_object_size) {
-	req = new AioTruncate(ictx, p->oid.name, p->objectno, p->offset, objectx, object_overlap,
-			      snapc, snap_id, req_comp);
+	req = new AioTruncate(ictx, p->oid.name, p->objectno, p->offset, snapc,
+			      req_comp);
       } else {
 	req = new AioZero(ictx, p->oid.name, p->objectno, p->offset, p->length,
-			  objectx, object_overlap,
-			  snapc, snap_id, req_comp);
+			  snapc, req_comp);
       }
 
       r = req->send();

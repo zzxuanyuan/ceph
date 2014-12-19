@@ -111,27 +111,17 @@ namespace librbd {
 
   AbstractWrite::AbstractWrite()
     : m_state(LIBRBD_AIO_WRITE_FLAT),
-      m_parent_overlap(0),
       m_snap_seq(0) {}
   AbstractWrite::AbstractWrite(ImageCtx *ictx, const std::string &oid,
-			       uint64_t object_no, uint64_t object_off, uint64_t len,
-			       vector<pair<uint64_t,uint64_t> >& objectx,
-			       uint64_t object_overlap,
-			       const ::SnapContext &snapc, librados::snap_t snap_id,
-			       Context *completion,
-			       bool hide_enoent)
-    : AioRequest(ictx, oid, object_no, object_off, len, snap_id, completion,
+			       uint64_t object_no, uint64_t object_off,
+                               uint64_t len, const ::SnapContext &snapc,
+			       Context *completion, bool hide_enoent)
+    : AioRequest(ictx, oid, object_no, object_off, len, CEPH_NOSNAP, completion,
 		 hide_enoent),
       m_state(LIBRBD_AIO_WRITE_FLAT), m_snap_seq(snapc.seq.val)
   {
-    m_object_image_extents = objectx;
-    m_parent_overlap = object_overlap;
-
-    // TODO: find a way to make this less stupid
-    for (std::vector<snapid_t>::const_iterator it = snapc.snaps.begin();
-	 it != snapc.snaps.end(); ++it) {
-      m_snaps.push_back(it->val);
-    }
+    compute_parent_extents();
+    m_snaps.insert(m_snaps.end(), snapc.snaps.begin(), snapc.snaps.end());
   }
 
   void AbstractWrite::guard_write()
@@ -249,6 +239,18 @@ namespace librbd {
     m_ictx->md_ctx.aio_operate(m_oid, rados_completion, &m_copyup,
 			       m_snap_seq, m_snaps);
     rados_completion->release();
+  }
+
+  void AbstractWrite::compute_parent_extents() {
+    uint64_t parent_overlap;
+    {
+      RWLock::RLocker l(m_ictx->parent_lock);
+      parent_overlap = m_ictx->parent_md.overlap;
+    }
+    Striper::extent_to_file(m_ictx->cct, &m_ictx->layout,
+                            m_object_no, 0, m_ictx->layout.fl_object_size,
+                            m_object_image_extents);
+    m_ictx->prune_parent_extents(m_object_image_extents, parent_overlap);
   }
 
   void AioWrite::add_write_ops(librados::ObjectWriteOperation &wr) {
