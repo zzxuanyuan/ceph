@@ -181,7 +181,8 @@ Description: debugging symbols for rbd-fuse
 Package: ceph-common
 Architecture: linux-any
 Depends: librbd1 (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends},
-         python-ceph (= ${binary:Version}), python-requests
+         python-rados (= ${binary:Version}), python-rbd (= ${binary:Version}),
+         python-cephfs (= ${binary:Version}), python-requests
 Conflicts: ceph-client-tools
 Replaces: ceph-client-tools, ceph (<< 0.78-500)
 Breaks: ceph (<< 0.78-500)
@@ -462,11 +463,11 @@ Description: Ceph test and benchmarking tools
  .
  This package contains the debugging symbols for ceph-test.
 
-Package: python-ceph
+Package: python-rados
 Architecture: linux-any
 Section: python
-Depends: librados2, librbd1, libcephfs1, ${misc:Depends}, ${python:Depends}
-Replaces: ceph (<< 0.85-979)
+Depends: librados2, ${misc:Depends}, ${python:Depends}
+Replaces: python-ceph (<< 0.87)
 X-Python-Version: >= 2.6
 Description: Python libraries for the Ceph distributed filesystem
  Ceph is a massively scalable, open-source, distributed
@@ -474,7 +475,35 @@ Description: Python libraries for the Ceph distributed filesystem
  block and file system storage.
  .
  This package contains Python libraries for interacting with Ceph's
- RADOS object storage, and RBD (RADOS block device).
+ RADOS object storage.
+
+Package: python-rbd
+Architecture: linux-any
+Section: python
+Depends: librados2, librbd1, libcephfs1, ${misc:Depends}, ${python:Depends}
+Replaces: python-ceph (<< 0.87)
+X-Python-Version: >= 2.6
+Description: Python libraries for the Ceph distributed filesystem
+ Ceph is a massively scalable, open-source, distributed
+ storage system that runs on commodity hardware and delivers object,
+ block and file system storage.
+ .
+ This package contains Python libraries for interacting with Ceph's
+ RBD (RADOS block device).
+
+Package: python-cephfs
+Architecture: linux-any
+Section: python
+Depends: libcephfs1, ${misc:Depends}, ${python:Depends}
+Replaces: python-ceph (<< 0.87)
+X-Python-Version: >= 2.6
+Description: Python libraries for the Ceph distributed filesystem
+ Ceph is a massively scalable, open-source, distributed
+ storage system that runs on commodity hardware and delivers object,
+ block and file system storage.
+ .
+ This package contains Python libraries for interacting with Ceph's
+ file system
 
 Package: libcephfs-java
 Section: java
