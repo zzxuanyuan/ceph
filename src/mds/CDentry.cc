@@ -164,6 +164,7 @@ version_t CDentry::pre_dirty(version_t min)
 
 void CDentry::_mark_dirty(LogSegment *ls)
 {
+  dout(10) << __func__ << ": was dirty=" << state_test(STATE_DIRTY) << dendl;
   // state+pin
   if (!state_test(STATE_DIRTY)) {
     state_set(STATE_DIRTY);
@@ -171,8 +172,36 @@ void CDentry::_mark_dirty(LogSegment *ls)
     get(PIN_DIRTY);
     assert(ls);
   }
-  if (ls) 
+  if (ls) {
+    /**
+     * Associate this dirty dentry with the current log segment (in which
+     * the dirtying operation will be journalled).  This is meant to be safe
+     * because if we were already assocated with a previous logsegment, that
+     * previous LS should be safe to expire (no longer needs reference to us)
+     * because we have now journalled a more recent version of the dentry.
+     * Therefore this operation may implicitly de-associate this CDentry from
+     * another LogSegment as well as associating it with the current one.
+     */
+    if (item_dirty.is_on_list()) {
+      bool found = false;
+      for (elist<CDentry*>::iterator p = ls->dirty_dentries.begin(); !p.end(); ++p) {
+        if (*p == this) {
+          found = true;
+          break;
+        }
+      }
+      if (found) {
+        dout(10) << __func__ << ": re-appending item_dirty to logsegment " << std::dec << ls->seq << dendl;
+      } else {
+        dout(10) << __func__ << ": stealing item_dirty to logsegment " << std::dec << ls->seq << dendl;
+      }
+    } else {
+      dout(10) << __func__ << ": appending item_dirty to logsegment " << std::dec << ls->seq << dendl;
+    }
     ls->dirty_dentries.push_back(&item_dirty);
+  } else {
+    dout(10) << __func__ << ": not updating item_dirty, no logsegment!" << dendl;
+  }
 }
 
 void CDentry::mark_dirty(version_t pv, LogSegment *ls) 
