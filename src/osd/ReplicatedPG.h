@@ -1150,6 +1150,13 @@ protected:
 				 bool must_promote,
 				 bool in_hit_set = false);
   /**
+   * This helper function checks if a promotion is needed.
+   */
+  void check_for_promote(OpRequestRef op,
+			 ObjectContextRef obc,
+                         const hobject_t& missing_oid,
+			 bool in_hit_set);
+  /**
    * This helper function tells the client to redirect their request elsewhere.
    */
   void do_cache_redirect(OpRequestRef op);
