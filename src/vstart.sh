@@ -374,6 +374,10 @@ fi
 [mds]
 $DAEMONOPTS
 $CMDSDEBUG
+        mds cache size = 100
+        mds cache log max segments = 2
+        mds cache log events per segment = 1
+        mds cache verify backtrace = 1
         mds debug frag = true
         mds debug auth pins = true
         mds debug subtrees = true
