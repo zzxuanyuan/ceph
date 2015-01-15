@@ -172,7 +172,7 @@ void CDentry::_mark_dirty(LogSegment *ls)
     get(PIN_DIRTY);
     assert(ls);
   }
-  if (ls) {
+  if (0 && ls) {
     /**
      * Associate this dirty dentry with the current log segment (in which
      * the dirtying operation will be journalled).  This is meant to be safe
