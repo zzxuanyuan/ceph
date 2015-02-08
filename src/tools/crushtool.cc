@@ -615,7 +615,7 @@ int main(int argc, const char **argv)
       lower_weights.swap(cur_weights);
     }
 
-    {
+    if (0) {
       ostringstream oss;
       crush.dump_tree(&oss, NULL);
       dout(1) << "\n" << oss.str() << dendl;
