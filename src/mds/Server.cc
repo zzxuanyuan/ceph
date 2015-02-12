@@ -341,6 +341,7 @@ void Server::_session_logged(Session *session, uint64_t state_seq, bool open, ve
   } else if (open) {
     assert(session->is_opening());
     mds->sessionmap.set_state(session, Session::STATE_OPEN);
+    mds->sessionmap.mark_dirty(session);
     mds->sessionmap.touch_session(session);
     assert(session->connection != NULL);
     session->connection->send_message(new MClientSession(CEPH_SESSION_OPEN));
@@ -438,6 +439,7 @@ void Server::finish_force_open_sessions(map<client_t,entity_inst_t>& cm,
    */
   dout(10) << "finish_force_open_sessions on " << cm.size() << " clients,"
 	   << " v " << mds->sessionmap.version << " -> " << (mds->sessionmap.version+1) << dendl;
+  mds->sessionmap.version++;
   for (map<client_t,entity_inst_t>::iterator p = cm.begin(); p != cm.end(); ++p) {
     Session *session = mds->sessionmap.get_session(p->second.name);
     assert(session);
@@ -453,15 +455,17 @@ void Server::finish_force_open_sessions(map<client_t,entity_inst_t>& cm,
 	mds->send_message_client(new MClientSession(CEPH_SESSION_OPEN), session);
 	if (mdcache->is_readonly())
 	  mds->send_message_client(new MClientSession(CEPH_SESSION_FORCE_RO), session);
+        mds->sessionmap.mark_dirty(session);
       }
     } else {
       dout(10) << "force_open_sessions skipping already-open " << session->info.inst << dendl;
       assert(session->is_open() || session->is_stale());
     }
-    if (dec_import)
+    if (dec_import) {
       session->dec_importing();
+      mds->sessionmap.mark_dirty(session);
+    }
   }
-  mds->sessionmap.version++;
 }
 
 class C_MDS_TerminatedSessions : public ServerContext {
@@ -2202,12 +2206,14 @@ void Server::apply_allocated_inos(MDRequestRef& mdr)
     session->pending_prealloc_inos.subtract(mdr->prealloc_inos);
     session->info.prealloc_inos.insert(mdr->prealloc_inos);
     mds->sessionmap.version++;
+    mds->sessionmap.mark_dirty(session);
     mds->inotable->apply_alloc_ids(mdr->prealloc_inos);
   }
   if (mdr->used_prealloc_ino) {
     assert(session);
     session->info.used_inos.erase(mdr->used_prealloc_ino);
     mds->sessionmap.version++;
+    mds->sessionmap.mark_dirty(session);
   }
 }
 
