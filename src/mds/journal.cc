@@ -1525,15 +1525,19 @@ void EMetaBlob::replay(MDS *mds, LogSegment *logseg, MDSlaveUpdate *slaveup)
 	    session->info.used_inos.clear();
 	  }
 	  mds->sessionmap.projected = ++mds->sessionmap.version;
+          mds->sessionmap.mark_dirty(session);
 	}
 	if (!preallocated_inos.empty()) {
 	  session->info.prealloc_inos.insert(preallocated_inos);
 	  mds->sessionmap.projected = ++mds->sessionmap.version;
+          mds->sessionmap.mark_dirty(session);
 	}
+
       } else {
 	dout(10) << "EMetaBlob.replay no session for " << client_name << dendl;
-	if (used_preallocated_ino)
+	if (used_preallocated_ino) {
 	  mds->sessionmap.projected = ++mds->sessionmap.version;
+        }
 	if (!preallocated_inos.empty())
 	  mds->sessionmap.projected = ++mds->sessionmap.version;
       }
