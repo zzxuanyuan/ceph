@@ -81,7 +81,7 @@ endif
 
 if WITH_RBD
 bash_completion_DATA += \
-	$(srcdir)/bash_completion/rbd \
+	$(srcdir)/bash_completion/rbd
 endif
 
 bin_SCRIPTS += \
