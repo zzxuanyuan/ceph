@@ -266,10 +266,13 @@ class MDS;
  * encode/decode outside of live MDS instance.
  */
 class SessionMapStore {
-public:
+protected:
   version_t version;
+public:
   ceph::unordered_map<entity_name_t, Session*> session_map;
   mds_rank_t rank;
+
+  version_t get_version() const {return version;}
 
   virtual void encode_header(bufferlist *header_bl);
   virtual void decode_header(bufferlist &header_bl);
@@ -310,8 +313,9 @@ class SessionMap : public SessionMapStore {
 public:
   MDS *mds;
 
-public:  // i am lazy
+protected:
   version_t projected, committing, committed;
+public:
   map<int,xlist<Session*>* > by_state;
   uint64_t set_state(Session *session, int state);
   map<version_t, list<MDSInternalContextBase*> > commit_waiters;
@@ -320,6 +324,46 @@ public:  // i am lazy
 		       projected(0), committing(0), committed(0),
                        loaded_legacy(false)
   { }
+
+  void inc_version()
+  {
+    version++;
+  }
+  
+  void inc_version_and_project()
+  {
+    projected = ++version;
+  }
+
+  void set_version(const version_t v)
+  {
+    version = projected = v;
+  }
+
+  void set_projected(const version_t v)
+  {
+    projected = v;
+  }
+
+  version_t get_projected() const
+  {
+    return projected;
+  }
+
+  version_t inc_projected()
+  {
+    return ++projected;
+  }
+
+  version_t get_committed()
+  {
+    return committed;
+  }
+
+  version_t get_committing()
+  {
+    return committed;
+  }
 
   // sessions
   void decode_legacy(bufferlist::iterator& blp);
