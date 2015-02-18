@@ -356,6 +356,8 @@ void Server::_session_logged(Session *session, uint64_t state_seq, bool open, ve
   dout(10) << "_session_logged " << session->info.inst << " state_seq " << state_seq << " " << (open ? "open":"close")
 	   << " " << pv << dendl;
 
+  mds->sessionmap.inc_version();
+
   if (piv) {
     mds->inotable->apply_release_ids(inos);
     assert(mds->inotable->get_version() == piv);
@@ -430,9 +432,17 @@ void Server::_session_logged(Session *session, uint64_t state_seq, bool open, ve
   } else {
     assert(0);
   }
-  mds->sessionmap.inc_version();  // noop
 }
 
+/**
+ * Inject sessions from some source other than actual connections.
+ *
+ * For example:
+ *  - sessions inferred from journal replay
+ *  - sessions learned from other MDSs during rejoin
+ *  - sessions learned from other MDSs during dir/caps migration
+ *  - sessions learned from other MDSs during a cross-MDS rename
+ */
 version_t Server::prepare_force_open_sessions(map<client_t,entity_inst_t>& cm,
 					      map<client_t,uint64_t>& sseqmap)
 {
@@ -440,7 +450,15 @@ version_t Server::prepare_force_open_sessions(map<client_t,entity_inst_t>& cm,
   dout(10) << "prepare_force_open_sessions " << pv 
 	   << " on " << cm.size() << " clients"
 	   << dendl;
+  int sessions_inserted = 0;
   for (map<client_t,entity_inst_t>::iterator p = cm.begin(); p != cm.end(); ++p) {
+    if (sessions_inserted >= mds->sessionmap.get_sessions_per_version()) {
+      // Split into multiple versions to ensure SessionMap doesn't have
+      // to do huge writes.
+      pv = mds->sessionmap.inc_projected();
+    }
+    sessions_inserted++;
+
     Session *session = mds->sessionmap.get_or_add_session(p->second);
     if (session->is_closed() || 
 	session->is_closing() ||
@@ -466,9 +484,19 @@ void Server::finish_force_open_sessions(map<client_t,entity_inst_t>& cm,
    * trying to force open a session...  
    */
   dout(10) << "finish_force_open_sessions on " << cm.size() << " clients,"
-	   << " v " << mds->sessionmap.get_version() << " -> " << (mds->sessionmap.get_version()+1) << dendl;
+	   << " initial v " << mds->sessionmap.get_version() << dendl;
+  
   mds->sessionmap.inc_version();
+
+  int sessions_inserted = 0;
   for (map<client_t,entity_inst_t>::iterator p = cm.begin(); p != cm.end(); ++p) {
+    if (sessions_inserted >= mds->sessionmap.get_sessions_per_version()) {
+      // Identical logic to prepare_force_open_sessions so that
+      // projected versions will match actual versions
+      mds->sessionmap.inc_version();
+    }
+    sessions_inserted++;
+
     Session *session = mds->sessionmap.get_session(p->second.name);
     assert(session);
     
@@ -494,6 +522,8 @@ void Server::finish_force_open_sessions(map<client_t,entity_inst_t>& cm,
       mds->sessionmap.mark_dirty(session);
     }
   }
+
+  dout(10) << __func__ << ": final v " << mds->sessionmap.get_version() << dendl;
 }
 
 class C_MDS_TerminatedSessions : public ServerContext {

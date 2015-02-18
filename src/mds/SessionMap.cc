@@ -353,7 +353,9 @@ void SessionMap::save(MDSInternalContextBase *onsave, version_t needv)
       dout(20) << "  " << name << " (ignoring)" << dendl;
     }
   }
-  op.omap_set(to_set);
+  if (!to_set.empty()) {
+    op.omap_set(to_set);
+  }
 
   dout(20) << " removing keys:" << dendl;
   set<string> to_remove;
@@ -364,7 +366,9 @@ void SessionMap::save(MDSInternalContextBase *onsave, version_t needv)
     k << *i;
     to_remove.insert(k.str());
   }
-  op.omap_rm_keys(to_remove);
+  if (!to_remove.empty()) {
+    op.omap_rm_keys(to_remove);
+  }
 
   dirty_sessions.clear();
   null_sessions.clear();
@@ -652,9 +656,41 @@ void Session::decode(bufferlist::iterator &p)
   _update_human_name();
 }
 
+/**
+ * Mark a session as requiring write by the current value of `version`.
+ */
 void SessionMap::mark_dirty(const Session *s)
 {
   dout(20) << __func__ << " s=" << s << " name=" << s->info.inst.name << dendl;
   dirty_sessions.insert(s->info.inst.name);
+}
+
+/**
+ * Start a new version: this will make the 
+ */
+void SessionMap::inc_version()
+{
+  dout(20) << __func__ << " v " << version << " -> " << version + 1
+    << " dirty=" << dirty_sessions.size() << "/"
+    << g_conf->mds_sessionmap_keys_per_op / 2 << dendl;
+
+  if (dirty_sessions.size() >= g_conf->mds_sessionmap_keys_per_op / 2) {
+    // If there are >= allowance/2 sessions dirty, then we have to
+    // do a save now, because otherwise the sessions written in this
+    // newly incremented version could leave us with more than `allowance`
+    // dirty sessions, and thereby an oversized write in the next save()
+    save(new C_MDSInternalNoop, version);
+  }
+  version++;
+}
+
+/**
+ * Users of the sessionmap may not modify more than this many
+ * sessions in a single version.  To modify more sessions, just
+ * call inc_version again.
+ */
+int SessionMap::get_sessions_per_version() const
+{
+  return g_conf->mds_sessionmap_keys_per_op / 2;
 }
 
