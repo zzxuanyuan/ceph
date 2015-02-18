@@ -325,14 +325,15 @@ public:
                        loaded_legacy(false)
   { }
 
-  void inc_version()
-  {
-    version++;
-  }
+  void inc_version();
   
+  /**
+   * Used during journal replay
+   */
   void inc_version_and_project()
   {
-    projected = ++version;
+    inc_version();
+    projected = version;
   }
 
   void set_version(const version_t v)
@@ -364,6 +365,8 @@ public:
   {
     return committed;
   }
+
+  int get_sessions_per_version() const;
 
   // sessions
   void decode_legacy(bufferlist::iterator& blp);
