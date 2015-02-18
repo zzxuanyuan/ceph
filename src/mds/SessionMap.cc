@@ -652,9 +652,37 @@ void Session::decode(bufferlist::iterator &p)
   _update_human_name();
 }
 
+/**
+ * Mark a session as requiring write by the current value of `version`.
+ */
 void SessionMap::mark_dirty(const Session *s)
 {
   dout(20) << __func__ << " s=" << s << " name=" << s->info.inst.name << dendl;
   dirty_sessions.insert(s->info.inst.name);
+}
+
+/**
+ * Start a new version: this will make the 
+ */
+void SessionMap::inc_version()
+{
+  if (dirty_sessions.size() >= g_conf->mds_sessionmap_keys_per_op / 2) {
+    // If there are >= allowance/2 sessions dirty, then we have to
+    // do a save now, because otherwise the sessions written in this
+    // newly incremented version could leave us with more than `allowance`
+    // dirty sessions, and thereby an oversized write in the next save()
+    save(new C_MDSInternalNoop, version);
+  }
+  version++;
+}
+
+/**
+ * Users of the sessionmap may not modify more than this many
+ * sessions in a single version.  To modify more sessions, just
+ * call inc_version again.
+ */
+int SessionMap::get_sessions_per_version() const
+{
+  return g_conf->mds_sessionmap_keys_per_op / 2;
 }
 
