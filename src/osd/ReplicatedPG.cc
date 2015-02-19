@@ -1878,7 +1878,7 @@ bool ReplicatedPG::maybe_handle_cache(OpRequestRef op,
     if (can_proxy_read)
       do_proxy_read(op);
     else
-      promote_op = op;
+      promote_op = op;   // for non-proxy case promote_object needs this
 
     // Avoid duplicate promotion
     if (obc.get() && obc->is_blocked()) {
@@ -1894,10 +1894,8 @@ bool ReplicatedPG::maybe_handle_cache(OpRequestRef op,
       // Check if in the current hit set
       if (in_hit_set) {
 	promote_object(obc, missing_oid, oloc, promote_op);
-      } else {
-	if (!can_proxy_read)
-	  do_cache_redirect(op);
-	promote_object(obc, missing_oid, oloc, OpRequestRef());
+      } else if (!can_proxy_read) {
+	do_cache_redirect(op);
       }
       break;
     default:
@@ -1915,10 +1913,8 @@ bool ReplicatedPG::maybe_handle_cache(OpRequestRef op,
 	}
 	if (in_other_hit_sets) {
 	  promote_object(obc, missing_oid, oloc, promote_op);
-	} else {
-	  if (!can_proxy_read)
-	    do_cache_redirect(op);
-	  promote_object(obc, missing_oid, oloc, OpRequestRef());
+	} else if (!can_proxy_read) {
+	  do_cache_redirect(op);
 	}
       }
       break;
