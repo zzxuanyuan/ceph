@@ -1092,20 +1092,21 @@ uint64_t OSDMap::get_features(int entity_type, uint64_t *pmask) const
 
 uint64_t OSDMap::get_up_osd_features() const
 {
-  bool first = true;
-  uint64_t features = 0;
-  for (int osd = 0; osd < max_osd; ++osd) {
-    if (!is_up(osd))
-      continue;
-    const osd_xinfo_t &xi = get_xinfo(osd);
-    if (first) {
-      features = xi.features;
-      first = false;
-    } else {
-      features &= xi.features;
+  if (!cached_up_osd_features) {
+    bool first = true;
+    for (int osd = 0; osd < max_osd; ++osd) {
+      if (!is_up(osd))
+	continue;
+      const osd_xinfo_t &xi = get_xinfo(osd);
+      if (first) {
+	cached_up_osd_features = xi.features;
+	first = false;
+      } else {
+	cached_up_osd_features &= xi.features;
+      }
     }
   }
-  return features;
+  return cached_up_osd_features;
 }
 
 void OSDMap::dedup(const OSDMap *o, OSDMap *n)
@@ -1258,6 +1259,10 @@ int OSDMap::apply_incremental(const Incremental &inc)
     return -EINVAL;
   
   assert(inc.epoch == epoch+1);
+
+  // invalidate cached values
+  cached_up_osd_features = 0;
+
   epoch++;
   modified = inc.modified;
 
@@ -2077,6 +2082,9 @@ void OSDMap::decode_classic(bufferlist::iterator& p)
 
 void OSDMap::decode(bufferlist::iterator& bl)
 {
+  // invalidate cached values
+  cached_up_osd_features = 0;
+
   /**
    * Older encodings of the OSDMap had a single struct_v which
    * covered the whole encoding, and was prior to our modern

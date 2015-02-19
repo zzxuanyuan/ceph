@@ -245,6 +245,8 @@ private:
   string cluster_snapshot;
   bool new_blacklist_entries;
 
+  mutable uint64_t cached_up_osd_features;
+
   mutable bool crc_defined;
   mutable uint32_t crc;
 
@@ -269,6 +271,7 @@ private:
 	     osd_uuid(new vector<uuid_d>),
 	     cluster_snapshot_epoch(0),
 	     new_blacklist_entries(false),
+	     cached_up_osd_features(0),
 	     crc_defined(false), crc(0),
 	     crush(new CrushWrapper) {
     memset(&fsid, 0, sizeof(fsid));
