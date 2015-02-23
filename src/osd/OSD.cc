@@ -2064,10 +2064,10 @@ void OSD::create_logger()
 
   osd_plb.add_u64(l_osd_op_wip, "op_wip");   // rep ops currently being processed (primary)
 
-  osd_plb.add_u64_counter(l_osd_op,       "op");           // client ops
-  osd_plb.add_u64_counter(l_osd_op_inb,   "op_in_bytes");       // client op in bytes (writes)
-  osd_plb.add_u64_counter(l_osd_op_outb,  "op_out_bytes");      // client op out bytes (reads)
-  osd_plb.add_time_avg(l_osd_op_lat,   "op_latency");       // client op latency
+  osd_plb.add_u64_counter(l_osd_op,       "op", "ops");         // client ops
+  osd_plb.add_u64_counter(l_osd_op_inb,   "op_in_bytes", "wr");       // client op in bytes (writes)
+  osd_plb.add_u64_counter(l_osd_op_outb,  "op_out_bytes", "rd");      // client op out bytes (reads)
+  osd_plb.add_time_avg(l_osd_op_lat,   "op_latency", "lat");       // client op latency
   osd_plb.add_time_avg(l_osd_op_process_lat, "op_process_latency");   // client op process latency
 
   osd_plb.add_u64_counter(l_osd_op_r,      "op_r");        // client reads
@@ -2106,7 +2106,7 @@ void OSD::create_logger()
   osd_plb.add_u64_counter(l_osd_push_in,    "push_in");        // inbound push messages
   osd_plb.add_u64_counter(l_osd_push_inb,   "push_in_bytes");  // inbound pushed bytes
 
-  osd_plb.add_u64_counter(l_osd_rop, "recovery_ops");       // recovery ops (started)
+  osd_plb.add_u64_counter(l_osd_rop, "recovery_ops", "recop");       // recovery ops (started)
 
   osd_plb.add_u64(l_osd_loadavg, "loadavg");
   osd_plb.add_u64(l_osd_buf, "buffer_bytes");       // total ceph::buffer bytes
