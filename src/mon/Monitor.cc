@@ -536,9 +536,9 @@ int Monitor::preinit()
   assert(!logger);
   {
     PerfCountersBuilder pcb(g_ceph_context, "mon", l_mon_first, l_mon_last);
-    pcb.add_u64(l_mon_num_sessions, "num_sessions");
-    pcb.add_u64_counter(l_mon_session_add, "session_add");
-    pcb.add_u64_counter(l_mon_session_rm, "session_rm");
+    pcb.add_u64(l_mon_num_sessions, "num_sessions", "sess");
+    pcb.add_u64_counter(l_mon_session_add, "session_add", "sadd");
+    pcb.add_u64_counter(l_mon_session_rm, "session_rm", "srm");
     pcb.add_u64_counter(l_mon_session_trim, "session_trim");
     pcb.add_u64_counter(l_mon_num_elections, "num_elections");
     pcb.add_u64_counter(l_mon_election_call, "election_call");
