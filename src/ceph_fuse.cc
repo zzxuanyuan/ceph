@@ -84,6 +84,7 @@ int main(int argc, const char **argv, const char *envp[]) {
   // we need to handle the forking ourselves.
   int fd[2] = {0, 0};  // parent's, child's
   pid_t childpid = 0;
+  pid_t test_pid = 0;
   bool restart_log = false;
   if (g_conf->daemonize) {
     int r = socketpair(AF_UNIX, SOCK_STREAM, 0, fd);
@@ -112,8 +113,8 @@ int main(int argc, const char **argv, const char *envp[]) {
     Client *client;
     CephFuse *cfuse;
 
-    MonClient mc(g_ceph_context);
-    int r = mc.build_initial_monmap();
+    MonClient *mc = new MonClient(g_ceph_context);
+    int r = mc->build_initial_monmap();
     if (r == -EINVAL)
       usage();
     if (r < 0)
@@ -127,7 +128,7 @@ int main(int argc, const char **argv, const char *envp[]) {
     messenger->set_policy(entity_name_t::TYPE_MDS,
 			  Messenger::Policy::lossless_client(0, 0));
 
-    client = new Client(messenger, &mc);
+    client = new Client(messenger, mc);
     if (filer_flags) {
       client->set_filer_flags(filer_flags);
     }
@@ -169,39 +170,60 @@ int main(int argc, const char **argv, const char *envp[]) {
       cerr << "ceph-fuse[" << getpid() << "]: fuse failed to start" << std::endl;
       goto out_client_unmount;
     }
-    cerr << "ceph-fuse[" << getpid() << "]: starting fuse" << std::endl;
-    r = cfuse->loop();
-    cerr << "ceph-fuse[" << getpid() << "]: fuse finished with error " << r << std::endl;
 
-  out_client_unmount:
-    client->unmount();
-    //cout << "unmounted" << std::endl;
 
-    cfuse->finalize();
-    delete cfuse;
+    if (g_conf->client_die_on_failed_remount)
+      test_pid = fork();
+    
+    if (test_pid == 0 && g_conf->client_die_on_failed_remount) {
+      r = client->test_remount();
+      if (r != 0) {
+	cerr << "ceph-fuse[" << getpid() << "]: fuse failed remount test with error "
+	     << cpp_strerror(r) << ", stopping" << std::endl;
 
-  out_shutdown:
-    client->shutdown();
-  out_init_failed:
-    // wait for messenger to finish
-    messenger->shutdown();
-    messenger->wait();
-  out_messenger_start_failed:
-    delete client;
-  out_mc_start_failed:
+	char buf[5050];
+	string mountpoint = cfuse->get_mount_point();
+	snprintf(buf, 5049, "fusermount -u -z %s", mountpoint.c_str());
+	system(buf);
+      }
+      return r;
+    } else {
+      cerr << "ceph-fuse[" << getpid() << "]: starting fuse" << std::endl;
+      r = cfuse->loop();
+      cerr << "ceph-fuse[" << getpid() << "]: fuse finished with error " << r << std::endl;
 
-    if (g_conf->daemonize) {
-      //cout << "child signalling parent with " << r << std::endl;
-      static int foo = 0;
-      foo += ::write(fd[1], &r, sizeof(r));
+    out_client_unmount:
+      client->unmount();
+      //cout << "unmounted" << std::endl;
+
+      cfuse->finalize();
+      delete cfuse;
+
+    out_shutdown:
+      client->shutdown();
+    out_init_failed:
+      // wait for messenger to finish
+      messenger->shutdown();
+      messenger->wait();
+    out_messenger_start_failed:
+      delete client;
+    out_mc_start_failed:
+
+      if (g_conf->daemonize) {
+	//cout << "child signalling parent with " << r << std::endl;
+	static int foo = 0;
+	foo += ::write(fd[1], &r, sizeof(r));
+      }
+
+      delete messenger;
+      g_ceph_context->put();
+      free(newargv);
+
+      delete mc;
+
+      //cout << "child done" << std::endl;
+      return r;
     }
-
-    delete messenger;
-    g_ceph_context->put();
-    free(newargv);
-
-    //cout << "child done" << std::endl;
-    return r;
   } else {
     // i am the parent
     //cout << "parent, waiting for signal" << std::endl;
