@@ -13,6 +13,7 @@
  */
 
 #include <sys/stat.h>
+#include <sys/utsname.h>
 #include <iostream>
 #include <string>
 using namespace std;
@@ -172,13 +173,26 @@ int main(int argc, const char **argv, const char *envp[]) {
     }
 
 
-    if (g_conf->client_die_on_failed_remount)
-      test_pid = fork();
+    test_pid = fork();
     
-    if (test_pid == 0 && g_conf->client_die_on_failed_remount) {
-      r = client->test_remount();
+    if (test_pid == 0) {
+      struct utsname os_info;
+      r = uname(&os_info);
+      assert(r == 0);
+      assert(memcmp(os_info.sysname, "Linux", 5) == 0);
+      int major, minor;
+      char *end_num;
+      major = strtol(os_info.release, &end_num, 10);
+      assert(major > 0);
+      ++end_num;
+      minor = strtol(end_num, NULL, 10);
+      bool can_invalidate_dentries = g_conf->client_try_dentry_invalidate &&
+	(major < 3 ||
+	 (major == 3 && minor < 18));
+      r = client->test_dentry_handling(can_invalidate_dentries);
       if (r != 0) {
-	cerr << "ceph-fuse[" << getpid() << "]: fuse failed remount test with error "
+	cerr << "ceph-fuse[" << getpid()
+	     << "]: fuse failed dentry invalidate/remount test with error "
 	     << cpp_strerror(r) << ", stopping" << std::endl;
 
 	char buf[5050];
