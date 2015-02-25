@@ -1075,7 +1075,7 @@ ceph_test_cfuse_cache_invalidate_SOURCES = test/test_cfuse_cache_invalidate.cc
 bin_DEBUGPROGRAMS += ceph_test_cfuse_cache_invalidate
 
 ceph_test_c_headers_SOURCES = test/test_c_headers.c
-ceph_test_c_headers_LDADD = $(LIBRADOS) $(LIBCEPHFS) $(CEPH_GLOBAL)
+ceph_test_c_headers_LDADD = $(LIBRADOS) $(LIBCEPHFS) $(CEPH_GLOBAL) -lstdc++
 ceph_test_c_headers_CFLAGS = $(AM_CFLAGS) \
 	-Werror \
 	-Wstrict-prototypes \

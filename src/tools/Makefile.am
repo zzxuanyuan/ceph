@@ -7,7 +7,7 @@ ceph_monstore_tool_LDADD = $(LIBOS) $(CEPH_GLOBAL) $(BOOST_PROGRAM_OPTIONS_LIBS)
 bin_DEBUGPROGRAMS += ceph-monstore-tool
 
 ceph_kvstore_tool_SOURCES = tools/ceph_kvstore_tool.cc
-ceph_kvstore_tool_LDADD = $(LIBOS) $(CEPH_GLOBAL)
+ceph_kvstore_tool_LDADD = $(LIBOS) $(CEPH_GLOBAL) -lstdc++
 ceph_kvstore_tool_CXXFLAGS = $(UNITTEST_CXXFLAGS)
 bin_DEBUGPROGRAMS += ceph-kvstore-tool
 
@@ -31,7 +31,7 @@ osdmaptool_LDADD = $(CEPH_GLOBAL)
 bin_PROGRAMS += osdmaptool
 
 ceph_scratchtool_SOURCES = tools/scratchtool.c
-ceph_scratchtool_LDADD = $(LIBRADOS) $(CEPH_GLOBAL)
+ceph_scratchtool_LDADD = $(LIBRADOS) $(CEPH_GLOBAL) -lstdc++
 bin_DEBUGPROGRAMS += ceph_scratchtool
 
 ceph_scratchtoolpp_SOURCES = tools/scratchtoolpp.cc
