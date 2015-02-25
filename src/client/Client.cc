@@ -2286,6 +2286,13 @@ void Client::send_reconnect(MetaSession *session)
     session->release = NULL;
   }
 
+  // reset my cap seq number
+  session->seq = 0;
+  //connect to the mds' offload targets
+  connect_mds_targets(mds);
+  //make sure unsafe requests get saved
+  resend_unsafe_requests(session);
+
   MClientReconnect *m = new MClientReconnect;
 
   // i have an open session.
@@ -2324,15 +2331,6 @@ void Client::send_reconnect(MetaSession *session)
       }	
     }
   }
-  
-  // reset my cap seq number
-  session->seq = 0;
-  
-  //connect to the mds' offload targets
-  connect_mds_targets(mds);
-  //make sure unsafe requests get saved
-  resend_unsafe_requests(session);
-
   session->con->send_message(m);
 
   mount_cond.Signal();
