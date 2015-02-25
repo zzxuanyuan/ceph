@@ -199,6 +199,7 @@ int main(int argc, const char **argv, const char *envp[]) {
 	string mountpoint = cfuse->get_mount_point();
 	snprintf(buf, 5049, "fusermount -u -z %s", mountpoint.c_str());
 	system(buf);
+	delete cfuse; // apparently it gets skipped with the fusermount thing
       }
       return r;
     } else {
